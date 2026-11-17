@@ -17,6 +17,15 @@ export const usersRepository = {
   buscarPorId: (id: string) =>
     prisma.users.findUnique({
       where: {id},
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
 
   buscarPorEmail: (email: string) =>
