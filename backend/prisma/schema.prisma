@@ -7,170 +7,739 @@ datasource db {
     provider = "postgresql"
 }
 
-model User {
-    id        String   @id @default(uuid())
-    name      String
-    email     String   @unique
-    password  String
-    createdAt DateTime @default(now())
-
-    // Campaigns created by this user
-    ownedCampaigns Campaign[] @relation("CampaignOwner")
-
-    // Campaigns this user is a member of
-    memberships CampaignMember[]
-}
-
-model Character {
-    id              String  @id @default(uuid())
-    name            String
-    age             Int?
-    origin          String?
-    personalHistory String? @db.Text
-
-    // Personal traits
-    objective       String? @db.Text
-    fear            String? @db.Text
-    importantPerson String?
-    possessions     String? @db.Text
-    secret          String? @db.Text
-
-    // Occupation
-    occupationId String?
-    occupation   Occupation? @relation(fields: [occupationId], references: [id])
-
-    // Campaign
-    campaignId String?
-    campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-
-    // Relations
-    attributes CharacterAttribute?
-    statistics CharacterStatistic?
-    skills     CharacterSkill[]
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-}
-
-model CharacterAttribute {
-    id          String @id @default(uuid())
-    characterId String @unique
-
-    // Core attributes (CoC)
-    strength     Int // STR
-    constitution Int // CON
-    size         Int // SIZ
-    dexterity    Int // DEX
-    appearance   Int // APP
-    intelligence Int // INT
-    power        Int // POW
-    education    Int // EDU
-
-    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-}
-
-model CharacterStatistic {
-    id          String @id @default(uuid())
-    characterId String @unique
-
-    // Hit points
-    hitPointsMax Int
-    hitPoints    Int
-
-    // Sanity
-    sanityInitial Int
-    sanity        Int
-
-    // Magic points
-    magicPointsMax Int
-    magicPoints    Int
-
-    // Other statistics
-    luck     Int
-    movement Int
-
-    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-}
-
-model Skill {
-    id          String  @id @default(uuid())
-    name        String  @unique
-    description String? @db.Text
-
-    // Starting value defined by the system
-    baseValue Int
-
-    characters  CharacterSkill[]
-    occupations OccupationSkill[]
-
-    createdAt DateTime @default(now())
-}
-
-model CharacterSkill {
-    id          String @id @default(uuid())
-    characterId String
-    skillId     String
-
-    // Current value
-    value Int
-
-    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-    skill     Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-    @@unique([characterId, skillId])
-}
-
-model Occupation {
-    id          String  @id @default(uuid())
-    name        String  @unique
-    description String? @db.Text
-
-    characters Character[]
-    skills     OccupationSkill[]
-
-    createdAt DateTime @default(now())
-}
-
-model OccupationSkill {
-    id           String @id @default(uuid())
-    occupationId String
-    skillId      String
-
-    occupation Occupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
-    skill      Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-    @@unique([occupationId, skillId])
-}
-
-model Campaign {
-    id        String   @id @default(uuid())
-    name      String
-    ownerId   String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    owner User @relation("CampaignOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-    members    CampaignMember[]
-    characters Character[]
-
-    @@unique([ownerId, name])
-}
-
-model CampaignMember {
-    id         String   @id @default(uuid())
-    userId     String
-    campaignId String
-    role       Role     @default(PLAYER)
-    joinedAt   DateTime @default(now())
-
-    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-
-    @@unique([userId, campaignId])
-}
+// ==========================================
+// ENUMS
+// ==========================================
 
 enum Role {
     MASTER
     PLAYER
+}
+
+enum CharacterType {
+    PLAYER
+    NPC
+    MONSTER
+    COMPANION
+}
+
+enum TemplateVersionStatus {
+    DRAFT
+    PUBLISHED
+    ARCHIVED
+}
+
+enum FieldType {
+    TEXT
+    TEXTAREA
+    NUMBER
+    BOOLEAN
+    DATE
+    SELECT
+    MULTISELECT
+    CHECKBOX
+    URL
+}
+
+enum FieldCategory {
+    GENERAL
+    ATTRIBUTE
+    STATISTIC
+    COMBAT
+    SKILL
+    BACKGROUND
+    INVENTORY
+    CUSTOM
+}
+
+enum CompendiumScope {
+    MASTER
+    CAMPAIGN
+}
+
+enum CompendiumType {
+    ITEM
+    WEAPON
+    ARMOR
+    POWER
+    CLASS
+    RACE
+    SPELL
+    SKILL
+    PROFESSION
+    FEAT
+    OTHER
+}
+
+enum AcquisitionType {
+    PURCHASED
+    LEARNED
+    GRANTED
+    STARTING
+    REWARD
+    OTHER
+}
+
+enum EffectApplication {
+    AUTOMATIC
+    MANUAL
+}
+
+enum EffectOperation {
+    SET
+    ADD
+    SUBTRACT
+    MULTIPLY
+    DIVIDE
+    APPEND
+    REMOVE
+}
+
+enum SessionStatus {
+    PLANNED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+enum SessionEventType {
+    STORY
+    COMBAT
+    DISCOVERY
+    NPC
+    LOCATION
+    REWARD
+    DEATH
+    DECISION
+    OTHER
+}
+
+enum AuditAction {
+    CREATE
+    UPDATE
+    DELETE
+    PUBLISH
+    ARCHIVE
+    MIGRATE
+    GRANT
+    REVOKE
+    LOGIN
+    OTHER
+}
+
+// ==========================================
+// USERS
+// ==========================================
+
+model Users {
+    id       String  @id @default(uuid())
+    name     String
+    email    String  @unique
+    password String
+    avatar   String?
+    role     Role    @default(PLAYER)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    ownedCampaigns    Campanhas[]       @relation("CampaignOwner")
+    memberships       CampaignMembers[]
+    characters        Characters[]      @relation("CharacterOwner")
+    createdCharacters Characters[]      @relation("CharacterCreator")
+
+    createdGameSystems GameSystems[] @relation("GameSystemCreator")
+
+    createdTemplates SheetTemplates[] @relation("TemplateCreator")
+
+    createdCompendiumEntries    CompendiumEntries[]    @relation("CompendiumCreator")
+    createdCompendiumCategories CompendiumCategories[] @relation("CompendiumCategoryCreator")
+
+    sessionParticipations SessionParticipants[]
+    createdSessions       CampaignSessions[]    @relation("SessionCreator")
+
+    auditLogs CampaignAuditLogs[] @relation("AuditActor")
+
+    characterNotes CharacterNotes[] @relation("NoteAuthor")
+}
+
+// ==========================================
+// GAME SYSTEMS
+// ==========================================
+
+model GameSystems {
+    id          String  @id @default(uuid())
+    name        String
+    slug        String  @unique
+    description String? @db.Text
+    logo        String?
+
+    createdById String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    createdBy Users? @relation("GameSystemCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+    campaigns         Campanhas[]
+    compendiumEntries CompendiumEntries[]
+
+    @@index([createdById])
+}
+
+// ==========================================
+// CAMPAIGNS
+// ==========================================
+
+model Campanhas {
+    id          String  @id @default(uuid())
+    name        String
+    description String? @db.Text
+    image       String?
+    isActive    Boolean @default(true)
+
+    ownerId      String
+    gameSystemId String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    owner Users @relation("CampaignOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+    gameSystem GameSystems? @relation(fields: [gameSystemId], references: [id], onDelete: SetNull)
+
+    members    CampaignMembers[]
+    characters Characters[]
+
+    sheetTemplates SheetTemplates[]
+
+    compendiumCategories CompendiumCategories[]
+    compendiumEntries    CompendiumEntries[]
+
+    sessions  CampaignSessions[]
+    auditLogs CampaignAuditLogs[]
+
+    @@index([ownerId])
+    @@index([gameSystemId])
+}
+
+model CampaignMembers {
+    id         String @id @default(uuid())
+    campaignId String
+    userId     String
+
+    joinedAt DateTime @default(now())
+
+    campaign Campanhas @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    user     Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([campaignId, userId])
+    @@index([userId])
+}
+
+// ==========================================
+// SHEET BUILDER
+// ==========================================
+
+model SheetTemplates {
+    id          String  @id @default(uuid())
+    name        String
+    description String? @db.Text
+
+    campaignId  String
+    createdById String
+
+    publishedVersionId String? @unique
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    campaign  Campanhas @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    createdBy Users     @relation("TemplateCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+    versions SheetTemplateVersions[] @relation("TemplateVersions")
+
+    publishedVersion SheetTemplateVersions? @relation("CurrentPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+
+    characters Characters[]
+
+    @@index([campaignId])
+    @@index([createdById])
+}
+
+model SheetTemplateVersions {
+    id         String                @id @default(uuid())
+    templateId String
+    version    Int
+    status     TemplateVersionStatus @default(DRAFT)
+
+    description String?   @db.Text
+    publishedAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    template SheetTemplates @relation("TemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
+
+    currentFor SheetTemplates? @relation("CurrentPublishedVersion")
+
+    sections   SheetSections[]
+    fields     FieldDefinitions[]
+    characters Characters[]
+
+    @@unique([templateId, version])
+    @@index([templateId, status])
+}
+
+model SheetSections {
+    id        String @id @default(uuid())
+    versionId String
+
+    name        String
+    description String? @db.Text
+    order       Int     @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version SheetTemplateVersions @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+    fields FieldDefinitions[]
+
+    @@index([versionId, order])
+}
+
+model FieldDefinitions {
+    id        String @id @default(uuid())
+    versionId String
+    sectionId String
+
+    key         String
+    label       String
+    description String? @db.Text
+
+    type     FieldType
+    category FieldCategory @default(GENERAL)
+
+    required Boolean @default(false)
+
+    min Float?
+    max Float?
+
+    defaultValue Json?
+    options      Json?
+    config       Json?
+
+    visibleToPlayer  Boolean @default(true)
+    editableByPlayer Boolean @default(true)
+
+    order Int @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version SheetTemplateVersions @relation(fields: [versionId], references: [id], onDelete: Cascade)
+    section SheetSections         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+    @@unique([versionId, key])
+    @@index([versionId, sectionId])
+    @@index([sectionId, order])
+}
+
+// ==========================================
+// CHARACTERS
+// ==========================================
+
+model Characters {
+    id   String @id @default(uuid())
+    name String
+
+    type CharacterType @default(PLAYER)
+
+    campaignId String
+    templateId String
+    versionId  String
+
+    ownerId     String?
+    createdById String
+
+    sheetData Json @default("{}")
+
+    isLocked Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    campaign Campanhas @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    template SheetTemplates        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+    version  SheetTemplateVersions @relation(fields: [versionId], references: [id], onDelete: Restrict)
+
+    owner     Users? @relation("CharacterOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+    createdBy Users  @relation("CharacterCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+    items   CharacterItems[]
+    powers  CharacterPowers[]
+    classes CharacterClasses[]
+    races   CharacterRaces[]
+    spells  CharacterSpells[]
+
+    notes CharacterNotes[]
+
+    sessionParticipations SessionParticipants[]
+    auditLogs             CampaignAuditLogs[]
+
+    @@index([campaignId])
+    @@index([ownerId])
+    @@index([templateId, versionId])
+}
+
+// ==========================================
+// COMPENDIUM
+// ==========================================
+
+model CompendiumCategories {
+    id          String  @id @default(uuid())
+    name        String
+    description String? @db.Text
+
+    scope CompendiumScope
+
+    creatorId  String
+    campaignId String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    creator  Users      @relation("CompendiumCategoryCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    campaign Campanhas? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    entries CompendiumEntries[]
+
+    @@index([creatorId, scope])
+    @@index([campaignId])
+}
+
+model CompendiumEntries {
+    id          String  @id @default(uuid())
+    name        String
+    description String? @db.Text
+
+    type  CompendiumType
+    scope CompendiumScope
+
+    creatorId    String
+    campaignId   String?
+    categoryId   String?
+    gameSystemId String?
+
+    image String?
+
+    properties   Json?
+    requirements Json?
+    cost         Json?
+
+    rarity      String?
+    isAvailable Boolean @default(true)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    creator Users @relation("CompendiumCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+    campaign Campanhas?            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    category CompendiumCategories? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+    gameSystem GameSystems? @relation(fields: [gameSystemId], references: [id], onDelete: SetNull)
+
+    effects CompendiumEffects[]
+
+    characterItems   CharacterItems[]
+    characterPowers  CharacterPowers[]
+    characterClasses CharacterClasses[]
+    characterRaces   CharacterRaces[]
+    characterSpells  CharacterSpells[]
+
+    @@index([creatorId, scope])
+    @@index([campaignId, type])
+    @@index([categoryId])
+    @@index([gameSystemId])
+}
+
+model CompendiumEffects {
+    id      String @id @default(uuid())
+    entryId String
+
+    name        String?
+    description String? @db.Text
+
+    targetFieldKey String
+
+    application EffectApplication @default(MANUAL)
+    operation   EffectOperation
+
+    value      Json
+    conditions Json?
+
+    order     Int     @default(0)
+    isEnabled Boolean @default(true)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    entry CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+    @@index([entryId, isEnabled])
+    @@index([targetFieldKey])
+}
+
+// ==========================================
+// CHARACTER ACQUISITIONS
+// ==========================================
+
+model CharacterItems {
+    id          String @id @default(uuid())
+    characterId String
+    entryId     String
+
+    quantity Int     @default(1)
+    equipped Boolean @default(false)
+
+    acquisition AcquisitionType @default(OTHER)
+
+    properties Json?
+
+    acquiredAt DateTime @default(now())
+
+    character Characters        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    entry     CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+    @@index([characterId])
+    @@index([entryId])
+}
+
+model CharacterPowers {
+    id          String @id @default(uuid())
+    characterId String
+    entryId     String
+
+    acquisition AcquisitionType @default(OTHER)
+    isActive    Boolean         @default(true)
+
+    properties Json?
+
+    acquiredAt DateTime @default(now())
+
+    character Characters        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    entry     CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+    @@index([characterId])
+    @@index([entryId])
+}
+
+model CharacterClasses {
+    id          String @id @default(uuid())
+    characterId String
+    entryId     String
+
+    level    Int     @default(1)
+    isActive Boolean @default(true)
+
+    properties Json?
+
+    acquiredAt DateTime @default(now())
+
+    character Characters        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    entry     CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+    @@index([characterId])
+    @@index([entryId])
+}
+
+model CharacterRaces {
+    id          String @id @default(uuid())
+    characterId String
+    entryId     String
+
+    isActive Boolean @default(true)
+
+    properties Json?
+
+    acquiredAt DateTime @default(now())
+
+    character Characters        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    entry     CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+    @@index([characterId])
+    @@index([entryId])
+}
+
+model CharacterSpells {
+    id          String @id @default(uuid())
+    characterId String
+    entryId     String
+
+    prepared Boolean @default(false)
+    isActive Boolean @default(true)
+
+    acquisition AcquisitionType @default(OTHER)
+
+    properties Json?
+
+    acquiredAt DateTime @default(now())
+
+    character Characters        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    entry     CompendiumEntries @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+    @@index([characterId])
+    @@index([entryId])
+}
+
+// ==========================================
+// CHARACTER NOTES
+// ==========================================
+
+model CharacterNotes {
+    id          String @id @default(uuid())
+    characterId String
+    authorId    String
+
+    title   String
+    content String @db.Text
+
+    isPrivate Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    character Characters @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    author    Users      @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+    @@index([characterId])
+    @@index([authorId])
+}
+
+// ==========================================
+// CAMPAIGN SESSIONS
+// ==========================================
+
+model CampaignSessions {
+    id          String @id @default(uuid())
+    campaignId  String
+    createdById String
+
+    title         String
+    description   String? @db.Text
+    sessionNumber Int
+
+    status SessionStatus @default(PLANNED)
+
+    scheduledAt DateTime?
+    startedAt   DateTime?
+    endedAt     DateTime?
+
+    summary String? @db.Text
+    notes   String? @db.Text
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    campaign  Campanhas @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    createdBy Users     @relation("SessionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+    participants SessionParticipants[]
+    events       SessionEvents[]
+    auditLogs    CampaignAuditLogs[]
+
+    @@unique([campaignId, sessionNumber])
+    @@index([campaignId, status])
+    @@index([scheduledAt])
+}
+
+// ==========================================
+// SESSION PARTICIPANTS
+// ==========================================
+
+model SessionParticipants {
+    id String @id @default(uuid())
+
+    sessionId   String
+    userId      String
+    characterId String?
+
+    attended Boolean @default(true)
+
+    joinedAt DateTime @default(now())
+
+    session   CampaignSessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    user      Users            @relation(fields: [userId], references: [id], onDelete: Cascade)
+    character Characters?      @relation(fields: [characterId], references: [id], onDelete: SetNull)
+
+    @@unique([sessionId, userId])
+    @@index([characterId])
+}
+
+// ==========================================
+// SESSION EVENTS / NARRATIVE LOG
+// ==========================================
+
+model SessionEvents {
+    id        String @id @default(uuid())
+    sessionId String
+
+    title       String
+    description String @db.Text
+
+    eventType SessionEventType @default(OTHER)
+
+    occurredAt DateTime?
+
+    metadata Json?
+
+    isPrivate Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    session CampaignSessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+    @@index([sessionId, eventType])
+    @@index([occurredAt])
+}
+
+// ==========================================
+// CAMPAIGN AUDIT LOG
+// ==========================================
+
+model CampaignAuditLogs {
+    id String @id @default(uuid())
+
+    campaignId String
+    actorId    String
+
+    characterId String?
+    sessionId   String?
+
+    action AuditAction
+
+    entityType String
+    entityId   String?
+
+    description String? @db.Text
+
+    beforeData Json?
+    afterData  Json?
+    metadata   Json?
+
+    createdAt DateTime @default(now())
+
+    campaign Campanhas @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    actor    Users     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+    character Characters?       @relation(fields: [characterId], references: [id], onDelete: SetNull)
+    session   CampaignSessions? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+    @@index([campaignId, createdAt])
+    @@index([actorId, createdAt])
+    @@index([characterId, createdAt])
+    @@index([sessionId, createdAt])
+    @@index([entityType, entityId])
 }

@@ -22,6 +22,7 @@ pnpm-debug.log*
 # Prisma generated client
 **/src/generated/
 **/prisma/generated/
+/backend/generated/
 
 # Local databases
 *.db
