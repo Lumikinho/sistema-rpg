@@ -1,0 +1,176 @@
+generator client {
+    provider = "prisma-client"
+    output   = "../src/generated"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model User {
+    id        String   @id @default(uuid())
+    name      String
+    email     String   @unique
+    password  String
+    createdAt DateTime @default(now())
+
+    // Campaigns created by this user
+    ownedCampaigns Campaign[] @relation("CampaignOwner")
+
+    // Campaigns this user is a member of
+    memberships CampaignMember[]
+}
+
+model Character {
+    id              String  @id @default(uuid())
+    name            String
+    age             Int?
+    origin          String?
+    personalHistory String? @db.Text
+
+    // Personal traits
+    objective       String? @db.Text
+    fear            String? @db.Text
+    importantPerson String?
+    possessions     String? @db.Text
+    secret          String? @db.Text
+
+    // Occupation
+    occupationId String?
+    occupation   Occupation? @relation(fields: [occupationId], references: [id])
+
+    // Campaign
+    campaignId String?
+    campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+    // Relations
+    attributes CharacterAttribute?
+    statistics CharacterStatistic?
+    skills     CharacterSkill[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model CharacterAttribute {
+    id          String @id @default(uuid())
+    characterId String @unique
+
+    // Core attributes (CoC)
+    strength     Int // STR
+    constitution Int // CON
+    size         Int // SIZ
+    dexterity    Int // DEX
+    appearance   Int // APP
+    intelligence Int // INT
+    power        Int // POW
+    education    Int // EDU
+
+    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model CharacterStatistic {
+    id          String @id @default(uuid())
+    characterId String @unique
+
+    // Hit points
+    hitPointsMax Int
+    hitPoints    Int
+
+    // Sanity
+    sanityInitial Int
+    sanity        Int
+
+    // Magic points
+    magicPointsMax Int
+    magicPoints    Int
+
+    // Other statistics
+    luck     Int
+    movement Int
+
+    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model Skill {
+    id          String  @id @default(uuid())
+    name        String  @unique
+    description String? @db.Text
+
+    // Starting value defined by the system
+    baseValue Int
+
+    characters  CharacterSkill[]
+    occupations OccupationSkill[]
+
+    createdAt DateTime @default(now())
+}
+
+model CharacterSkill {
+    id          String @id @default(uuid())
+    characterId String
+    skillId     String
+
+    // Current value
+    value Int
+
+    character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+    skill     Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@unique([characterId, skillId])
+}
+
+model Occupation {
+    id          String  @id @default(uuid())
+    name        String  @unique
+    description String? @db.Text
+
+    characters Character[]
+    skills     OccupationSkill[]
+
+    createdAt DateTime @default(now())
+}
+
+model OccupationSkill {
+    id           String @id @default(uuid())
+    occupationId String
+    skillId      String
+
+    occupation Occupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
+    skill      Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@unique([occupationId, skillId])
+}
+
+model Campaign {
+    id        String   @id @default(uuid())
+    name      String
+    ownerId   String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    owner User @relation("CampaignOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+    members    CampaignMember[]
+    characters Character[]
+
+    @@unique([ownerId, name])
+}
+
+model CampaignMember {
+    id         String   @id @default(uuid())
+    userId     String
+    campaignId String
+    role       Role     @default(PLAYER)
+    joinedAt   DateTime @default(now())
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, campaignId])
+}
+
+enum Role {
+    MASTER
+    PLAYER
+}
