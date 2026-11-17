@@ -1,18 +1,17 @@
-import { app } from "./app.js";
-import { env } from "./config/env.js";
-import { prisma } from "./config/prisma.js";
+import "dotenv/config";
+import {connectDatabase} from "./config/prisma.js";
+import express from "express";
+import {routes} from "./routes/routes.js";
+const app = express();
+const port = process.env.SERVER_PORT;
+const desenvolvimento = process.env.NODE_ENV;
 
-const server = app.listen(env.port, () => {
-  console.log(`Servidor rodando em http://localhost:${env.port} (${env.nodeEnv})`);
+app.use("/", routes);
+
+await connectDatabase();
+
+const server = app.listen(port, () => {
+  console.log(
+    `Servidor rodando em http://localhost:${port} (${desenvolvimento})`,
+  );
 });
-
-function shutdown(signal: string): void {
-  console.log(`\n${signal} recebido, encerrando o servidor...`);
-
-  server.close(() => {
-    void prisma.$disconnect().finally(() => process.exit(0));
-  });
-}
-
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
