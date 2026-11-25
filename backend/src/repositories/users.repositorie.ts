@@ -28,9 +28,52 @@ export const usersRepository = {
       },
     }),
 
+  buscarPorIdComSenha: (id: string) =>
+    prisma.users.findUnique({
+      where: {id},
+    }),
+
+  obterEstatisticas: async (userId: string) => {
+    const [ownedCampaigns, memberships, characters] = await Promise.all([
+      prisma.campanhas.count({where: {ownerId: userId}}),
+      prisma.campaignMembers.count({where: {userId}}),
+      prisma.characters.count({
+        where: {OR: [{ownerId: userId}, {createdById: userId}]},
+      }),
+    ]);
+
+    return {
+      ownedCampaigns,
+      memberships,
+      characters,
+    };
+  },
+
   buscarPorEmail: (email: string) =>
     prisma.users.findUnique({
       where: {email},
+    }),
+
+  buscarPorTermo: (termo: string, excetoId?: string) =>
+    prisma.users.findMany({
+      where: {
+        AND: [
+          excetoId ? {id: {not: excetoId}} : {},
+          {
+            OR: [
+              {name: {contains: termo, mode: "insensitive"}},
+              {email: {contains: termo, mode: "insensitive"}},
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+      },
+      take: 20,
     }),
 
   criar: (data: {

@@ -225,6 +225,7 @@ model CampaignMembers {
     id         String @id @default(uuid())
     campaignId String
     userId     String
+    role       Role   @default(PLAYER)
 
     joinedAt DateTime @default(now())
 
